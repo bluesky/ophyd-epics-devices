@@ -2,5 +2,9 @@
   {
     "version": "main",
     "url": "https://bluesky.github.io/ophyd-epics-devices/main/"
+  },
+  {
+    "version": "panda-ideas",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas/"
   }
 ]
