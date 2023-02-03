@@ -15,6 +15,7 @@ class Motor(StandardReadable, Movable, Stoppable):
         self.setpoint = EpicsSignalRW(float, ".VAL")
         self.readback = EpicsSignalR(float, ".RBV")
         self.velocity = EpicsSignalRW(float, ".VELO")
+        self.acceleration = EpicsSignalR(float, ".ACCL")
         self.units = EpicsSignalR(str, ".EGU")
         self.precision = EpicsSignalR(int, ".PREC")
         # Signals that collide with standard methods should have a trailing underscore
