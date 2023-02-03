@@ -4,6 +4,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/main/"
   },
   {
+    "version": "add-accl-to-motor",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/add-accl-to-motor/"
+  },
+  {
     "version": "panda-ideas",
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas/"
   }
