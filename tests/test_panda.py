@@ -1,26 +1,17 @@
 """Test file specifying how we want to eventually interact with the panda..."""
-from ophyd_epics_devices.panda import PandA, SeqTable, SeqTrigger
-from ophyd.v2.core import DeviceCollector
-import pytest
-
-from bluesky import RunEngine
-import bluesky.plan_stubs as bps
 import numpy as np
+import pytest
+from ophyd.v2.core import DeviceCollector
+
+from ophyd_epics_devices.panda import PandA, SeqTable, SeqTrigger
 
 
 @pytest.fixture
 async def sim_panda():
     async with DeviceCollector(sim=True):
         sim_panda = PandA("PANDAQSRV")
-        # Signals connected here
 
     assert sim_panda.name == "sim_panda"
-    # units = cast(ChannelSim, sim_motor.units.read_channel)
-    # units.set_value("mm")
-    # precision = cast(ChannelSim, sim_motor.precision.read_channel)
-    # precision.set_value(3)
-    # velocity = cast(ChannelSim, sim_motor.velocity.read_channel)
-    # velocity.set_value(1)
     yield sim_panda
 
 
