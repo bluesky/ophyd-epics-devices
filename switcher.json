@@ -12,6 +12,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/add_zebra/"
   },
   {
+    "version": "new-signal",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/new-signal/"
+  },
+  {
     "version": "panda-ideas",
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas/"
   }
