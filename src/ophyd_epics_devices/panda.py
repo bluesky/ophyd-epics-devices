@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from enum import Enum
 from typing import (
@@ -14,8 +16,16 @@ from typing import (
 
 import numpy as np
 import numpy.typing as npt
-from ophyd.v2.core import Device, DeviceVector, connect_children, get_device_children
-from ophyd.v2.core import SignalRW, SignalR, SignalW, SignalX
+from ophyd.v2.core import (
+    Device,
+    DeviceVector,
+    SignalR,
+    SignalRW,
+    SignalW,
+    SignalX,
+    connect_children,
+    get_device_children,
+)
 from ophyd.v2.epics import (
     epics_signal_r,
     epics_signal_rw,
@@ -85,7 +95,7 @@ class PVIEntry(TypedDict, total=False):
 
 
 def block_name_number(block_name: str) -> Tuple[str, int]:
-    m = re.match("^([a-z]+)([0-9]*)$", block_name)
+    m = re.match("^([0-9_a-z]+)([0-9]*)$", block_name)
     assert m, f"Expected '<block_name><block_num>', got '{block_name}'"
     name, num = m.groups()
     return name, int(num or 1)
@@ -151,7 +161,7 @@ class PandA(Device):
 
     async def _make_block(self, block_name: str, block_pv: str, sim: bool):
         name, num = block_name_number(block_name)
-        anno = get_type_hints(self).get(name)
+        anno = get_type_hints(type(self)).get(name)
         if anno:
             # We know what type it should be, so make one
             args = get_args(anno)
@@ -164,7 +174,7 @@ class PandA(Device):
                 # Anno is just the block class
                 assert num == 1, f"Only expected one {name} block, got {num}"
                 block = anno()
-            field_annos = get_type_hints(block)
+            field_annos = get_type_hints(type(block))
         else:
             # Make a generic device
             block = Device()
@@ -200,6 +210,7 @@ class PandA(Device):
                     f"Can't make {block_name}.{field_name} from {field_pvi}"
                 )
             setattr(block, field_name, signal)
+        # TODO: what if a field we want isn't there?
 
     async def connect(self, sim=False):
         panda_pvi = await pvi_get(self._init_prefix + ":PVI")
