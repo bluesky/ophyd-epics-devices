@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import atexit
 import re
 from enum import Enum
@@ -33,6 +35,8 @@ from ophyd.v2.epics import (
     epics_signal_x,
 )
 from p4p.client.thread import Context
+
+from ophyd_epics_devices.utils import get_type_hints_no_inheritance
 
 
 class PulseBlock(Device):
@@ -93,7 +97,7 @@ class PVIEntry(TypedDict, total=False):
 
 
 def block_name_number(block_name: str) -> Tuple[str, int]:
-    m = re.match("^([a-z]+)([0-9]*)$", block_name)
+    m = re.match("^([0-9_a-z]+)([0-9]*)$", block_name)
     assert m, f"Expected '<block_name><block_num>', got '{block_name}'"
     name, num = m.groups()
     return name, int(num or 1)
@@ -144,7 +148,7 @@ class PandA(Device):
 
     def verify_block(self, name: str, num: int):
         """Given a block name and number, return information about a block."""
-        anno = get_type_hints(self).get(name)
+        anno = get_type_hints(type(self)).get(name)
 
         block: Device = Device()
 
@@ -164,8 +168,7 @@ class PandA(Device):
         sim mode then does a pvi call, and identifies this signal from the pvi call.
         """
         block = self.verify_block(name, num)
-
-        field_annos = get_type_hints(block)
+        field_annos = get_type_hints_no_inheritance(type(block))
         block_pvi = await pvi_get(block_pv, self.ctxt) if not sim else None
 
         # finds which fields this class actually has, e.g. delay, width...
@@ -231,7 +234,7 @@ class PandA(Device):
         return signal_factory(dtype, "pva://" + read_pv, "pva://" + write_pv)
 
     def set_attribute(self, name, num, block):
-        anno = get_type_hints(self).get(name)
+        anno = get_type_hints(type(self)).get(name)
 
         # get_origin to see if it's a device vector.
         if (anno == DeviceVector[PulseBlock]) or (anno == DeviceVector[SeqBlock]):
@@ -251,10 +254,11 @@ class PandA(Device):
         pvi = await pvi_get(self._init_prefix + ":PVI", self.ctxt) if not sim else None
         hints = {
             attr_name: attr_type
-            for attr_name, attr_type in get_type_hints(self).items()
+            for attr_name, attr_type in get_type_hints_no_inheritance(
+                type(self)
+            ).items()
             if not attr_name.startswith("_")
         }
-
         # create all the blocks pvi says it should have,
         if pvi:
             for block_name, block_pvi in pvi.items():
