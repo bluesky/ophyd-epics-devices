@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from enum import Enum
 from typing import (
@@ -94,7 +96,7 @@ class PVIEntry(TypedDict, total=False):
 
 
 def block_name_number(block_name: str) -> Tuple[str, int]:
-    m = re.match("^([a-z]+)([0-9]*)$", block_name)
+    m = re.match("^([0-9_a-z]+)([0-9]*)$", block_name)
     assert m, f"Expected '<block_name><block_num>', got '{block_name}'"
     name, num = m.groups()
     return name, int(num or 1)
@@ -136,7 +138,7 @@ class PandA(Device, Savable):
 
     def verify_block(self, name: str, num: int):
         """Given a block name and number, return information about a block."""
-        anno = get_type_hints(self).get(name)
+        anno = get_type_hints(type(self)).get(name)
 
         block: Device = Device()
 
