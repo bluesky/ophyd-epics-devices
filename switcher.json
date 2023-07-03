@@ -4,10 +4,6 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/main/"
   },
   {
-    "version": "ad-combo",
-    "url": "https://bluesky.github.io/ophyd-epics-devices/ad-combo/"
-  },
-  {
     "version": "add-accl-to-motor",
     "url": "https://bluesky.github.io/ophyd-epics-devices/add-accl-to-motor/"
   },
