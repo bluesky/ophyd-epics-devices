@@ -5,13 +5,24 @@ import time
 from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Optional, Protocol, Sequence, Sized, Type
+from typing import (
+    Callable,
+    Deque,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    Sized,
+    Type,
+)
 
 from bluesky.protocols import (
     Asset,
+    Collectable,
     Descriptor,
     Flyable,
-    PartialEvent,
     Triggerable,
     WritesExternalAssets,
 )
@@ -124,44 +135,42 @@ class NDFileHDF(Device):
 
 
 class _HDFResource:
-    def __init__(self) -> None:
-        # TODO: set to Deque[Asset] after protocols updated for stream*
-        #   https://github.com/bluesky/bluesky/issues/1558
-        self.asset_docs = collections.deque()  # type: ignore
+    def __init__(self, data_keys: List[str]) -> None:
+        self.asset_docs: Deque[Asset] = collections.deque()
+        self._data_keys = data_keys
         self._last_emitted = 0
         self._last_flush = time.monotonic()
         self._compose_datum: Optional[Callable] = None
 
     def _append_resource(self, full_file_name: str):
-        resource_doc, (self._compose_datum,) = compose_stream_resource(
+        resource_doc, self._compose_datum = compose_stream_resource(
             spec="AD_HDF5_SWMR_SLICE",
             root="/",
             resource_path=full_file_name,
             resource_kwargs={},
-            stream_names=["primary"],
         )
         self.asset_docs.append(("stream_resource", resource_doc))
 
-    def _append_datum(self, event_count: int):
+    def _append_datum(self, num_captured: int):
         assert self._compose_datum, "Resource not emitted yet"
+        indices = dict(start=self._last_emitted, stop=num_captured)
         datum_doc = self._compose_datum(
-            datum_kwargs={},
-            event_offset=self._last_emitted,
-            event_count=event_count,
+            data_keys=self._data_keys,
+            indices=indices,
+            # Until we support rewind, these will always be the same
+            seq_nums=indices,
         )
-        self._last_emitted += event_count
         self.asset_docs.append(("stream_datum", datum_doc))
 
     async def flush_and_publish(self, hdf: NDFileHDF):
         num_captured = await hdf.num_captured.get_value()
-        if num_captured:
-            if self._compose_datum is None:
-                self._append_resource(await hdf.full_file_name.get_value())
-            event_count = num_captured - self._last_emitted
-            if event_count:
-                self._append_datum(event_count)
-                await hdf.flush_now.set(1)
-                self._last_flush = time.monotonic()
+        if num_captured and self._compose_datum is None:
+            self._append_resource(await hdf.full_file_name.get_value())
+        if num_captured > self._last_emitted:
+            self._append_datum(num_captured)
+            await hdf.flush_now.set(1)
+            self._last_emitted = num_captured
+            self._last_flush = time.monotonic()
         if time.monotonic() - self._last_flush > FRAME_TIMEOUT:
             raise TimeoutError(f"{hdf.name}: writing stalled on frame {num_captured}")
 
@@ -187,14 +196,14 @@ FLUSH_PERIOD = 0.5
 FRAME_TIMEOUT = 120
 
 
-class HDFStreamerDet(StandardReadable, Flyable, WritesExternalAssets):
+class HDFStreamerDet(StandardReadable, Flyable, WritesExternalAssets, Collectable):
     def __init__(
         self, drv: ADDriver, hdf: NDFileHDF, dp: DirectoryProvider, name=""
     ) -> None:
         self.drv = drv
         self.hdf = hdf
         self._dp = dp
-        self._resource = _HDFResource()
+        self._resource = _HDFResource([self.name])
         self._capture_status: Optional[AsyncStatus] = None
         self._start_status: Optional[AsyncStatus] = None
         self.set_readable_signals(config=[self.drv.acquire_time])
@@ -203,7 +212,7 @@ class HDFStreamerDet(StandardReadable, Flyable, WritesExternalAssets):
     @AsyncStatus.wrap
     async def stage(self) -> None:
         # Make a new resource for the new HDF file we're going to open
-        self._resource = _HDFResource()
+        self._resource = _HDFResource([self.name])
         await asyncio.gather(
             self.drv.wait_for_plugins.set(True),
             self.hdf.lazy_open.set(True),
@@ -253,12 +262,8 @@ class HDFStreamerDet(StandardReadable, Flyable, WritesExternalAssets):
         # Wait for it to start, stashing the status that tells us when it finishes
         self._start_status = await set_and_wait_for_value(self.drv.acquire, True)
 
-    # Do the same thing for flyscans and step scans
-    async def describe_collect(self) -> Dict[str, Dict[str, Descriptor]]:
-        return {self.name: await self.describe()}
-
-    def collect(self) -> Iterator[PartialEvent]:
-        yield from iter([])
+    # Same describe as for step scans
+    describe_collect = describe
 
     @AsyncStatus.wrap
     async def complete(self) -> None:

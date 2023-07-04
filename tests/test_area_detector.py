@@ -1,5 +1,5 @@
 import time
-from typing import List
+from typing import Callable, List
 from unittest.mock import patch
 
 import bluesky.plan_stubs as bps
@@ -142,22 +142,18 @@ async def test_hdf_streamer_dets_step(hdf_streamer_dets: List[HDFStreamerDet], R
     assert event["data"] == {}
 
 
-# TODO: write test where they are in the same stream after
-#   https://github.com/bluesky/bluesky/issues/1558
-async def test_hdf_streamer_dets_fly_different_streams(
-    hdf_streamer_dets: List[HDFStreamerDet], RE
-):
-    d = DocHolder()
-    deta, detb = hdf_streamer_dets
-
-    for det in hdf_streamer_dets:
-        set_sim_value(det.hdf.num_captured, 5)
-
-    @bpp.stage_decorator(hdf_streamer_dets)
+def make_fly_plan(
+    hdf_streamer_dets: List[HDFStreamerDet], same_stream=False
+) -> Callable:
     @bpp.run_decorator()
-    def fly_det(num: int):
+    def fly_dets(num: int):
+        # If same_stream then need to pre-declare
+        if same_stream:
+            yield from bps.declare_stream(*hdf_streamer_dets, collect=True)
         # Set the number of images
-        yield from bps.mov(deta.drv.num_images, num, detb.drv.num_images, num)
+        for det in hdf_streamer_dets:
+            yield from bps.abs_set(det.drv.num_images, num, wait=False, group="set")
+        yield from bps.wait(group="set")
         # Kick them off in parallel and wait to be done
         for det in hdf_streamer_dets:
             yield from bps.kickoff(det, wait=False, group="kickoff")
@@ -170,20 +166,32 @@ async def test_hdf_streamer_dets_fly_different_streams(
         while any(status and not status.done for status in statuses):
             yield from bps.sleep(0.1)
             for det in hdf_streamer_dets:
-                yield from bps.collect(det, stream=True, return_payload=False)
+                kwargs = {}
+                if not same_stream:
+                    kwargs["name"] = det.name
+                yield from bps.collect(det, stream=True, return_payload=False, **kwargs)
         yield from bps.wait(group="complete")
 
-    RE(fly_det(5), d.append)
+    return bpp.stage_decorator(hdf_streamer_dets)(fly_dets)
 
-    # TODO: stream_* will come after descriptor soon
+
+async def test_hdf_streamer_dets_fly_different_streams(
+    hdf_streamer_dets: List[HDFStreamerDet], RE
+):
+    d = DocHolder()
+    for det in hdf_streamer_dets:
+        set_sim_value(det.hdf.num_captured, 5)
+
+    RE(make_fly_plan(hdf_streamer_dets)(5), d.append)
+
     assert d.names == [
         "start",
-        "stream_resource",
-        "stream_datum",
         "descriptor",
         "stream_resource",
         "stream_datum",
         "descriptor",
+        "stream_resource",
+        "stream_datum",
         "stop",
     ]
 
@@ -198,7 +206,7 @@ async def test_hdf_streamer_dets_fly_different_streams(
     assert 0 == await hdf.num_capture.get_value()
     assert FileWriteMode.stream == await hdf.file_write_mode.get_value()
 
-    _, sra, sda, descriptora, srb, sdb, descriptorb, _ = d.docs
+    _, descriptora, sra, sda, descriptorb, srb, sdb, _ = d.docs
 
     assert descriptora["configuration"]["deta"]["data"]["deta-drv-acquire_time"] == 0.8
     assert descriptorb["configuration"]["detb"]["data"]["detb-drv-acquire_time"] == 1.8
@@ -209,8 +217,42 @@ async def test_hdf_streamer_dets_fly_different_streams(
     assert sda["stream_resource"] == sra["uid"]
     assert sdb["stream_resource"] == srb["uid"]
     for sd in (sda, sdb):
-        assert sd["event_offset"] == 0
-        assert sd["event_count"] == 5
+        for k in ("seq_nums", "indices"):
+            assert sd[k] == dict(start=0, stop=5)
+
+
+async def test_hdf_streamer_dets_fly_same_stream(
+    hdf_streamer_dets: List[HDFStreamerDet], RE
+):
+    d = DocHolder()
+    for det in hdf_streamer_dets:
+        set_sim_value(det.hdf.num_captured, 6)
+
+    RE(make_fly_plan(hdf_streamer_dets, same_stream=True)(6), d.append)
+
+    assert d.names == [
+        "start",
+        "descriptor",
+        "stream_resource",
+        "stream_datum",
+        "stream_resource",
+        "stream_datum",
+        "stop",
+    ]
+
+    _, descriptor, sra, sda, srb, sdb, _ = d.docs
+
+    assert descriptor["configuration"]["deta"]["data"]["deta-drv-acquire_time"] == 0.8
+    assert descriptor["configuration"]["detb"]["data"]["detb-drv-acquire_time"] == 1.8
+    assert descriptor["data_keys"]["deta"]["shape"] == [768, 1024]
+    assert descriptor["data_keys"]["detb"]["shape"] == [769, 1025]
+    assert sra["resource_path"] == "/tmp/123456/deta.h5"
+    assert srb["resource_path"] == "/tmp/123456/detb.h5"
+    assert sda["stream_resource"] == sra["uid"]
+    assert sdb["stream_resource"] == srb["uid"]
+    for sd in (sda, sdb):
+        for k in ("seq_nums", "indices"):
+            assert sd[k] == dict(start=0, stop=6)
 
 
 async def test_hdf_streamer_dets_timeout(hdf_streamer_dets: List[HDFStreamerDet]):
