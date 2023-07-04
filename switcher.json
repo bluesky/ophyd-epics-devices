@@ -18,5 +18,9 @@
   {
     "version": "panda-ideas-testing",
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas-testing/"
+  },
+  {
+    "version": "stream",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/stream/"
   }
 ]
