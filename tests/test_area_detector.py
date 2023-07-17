@@ -137,8 +137,9 @@ async def test_hdf_streamer_dets_step(hdf_streamer_dets: List[HDFStreamerDet], R
     assert sda["stream_resource"] == sra["uid"]
     assert sdb["stream_resource"] == srb["uid"]
     for sd in (sda, sdb):
-        assert sd["event_offset"] == 0
-        assert sd["event_count"] == 1
+        assert sd["block_idx"] == 0
+        assert tuple(sd["indices"].values()) == (0, 1)
+        assert tuple(sd["seq_nums"].values()) == (0, 1)
     assert event["data"] == {}
 
 
@@ -149,7 +150,9 @@ def make_fly_plan(
     def fly_dets(num: int):
         # If same_stream then need to pre-declare
         if same_stream:
-            yield from bps.declare_stream(*hdf_streamer_dets, collect=True)
+            yield from bps.declare_stream(
+                *hdf_streamer_dets, collect=True, name="primary"
+            )
         # Set the number of images
         for det in hdf_streamer_dets:
             yield from bps.abs_set(det.drv.num_images, num, wait=False, group="set")
