@@ -4,6 +4,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -15,6 +16,7 @@ from typing import (
 
 import numpy as np
 import numpy.typing as npt
+from bluesky.protocols import Savable
 from ophyd.v2.core import (
     Device,
     DeviceVector,
@@ -114,7 +116,7 @@ async def pvi_get(pv: str, timeout: float = 5.0) -> Dict[str, PVIEntry]:
     return result
 
 
-class PandA(Device):
+class PandA(Device, Savable):
     pulse: DeviceVector[PulseBlock]
     seq: DeviceVector[SeqBlock]
     pcap: PcapBlock
@@ -274,3 +276,23 @@ class PandA(Device):
 
         self.set_name(self.name)
         await super().connect(sim)
+
+    def sort_signal_by_phase(self, signals: List[SignalRW]) -> List[SignalRW]:
+        """Two phases. Every signal ending in 'units' is done in first phase.
+        Return rule TODO add test for this"""
+
+        phase_1 = []
+        phase_2 = []
+        for signal in signals:
+            if signal.source.endswith("units"):
+                phase_1.append(signal)
+            else:
+                phase_2.append(signal)
+
+        return [phase_1, phase_2]
+
+
+"""Tests to add:
+Create fake panda and check everything in phase one ends with units
+Check everything in phase two doesnt end with units
+"""
