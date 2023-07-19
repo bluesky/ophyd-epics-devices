@@ -12,6 +12,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/add_zebra/"
   },
   {
+    "version": "check-segfaults",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/check-segfaults/"
+  },
+  {
     "version": "panda-ideas",
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas/"
   },
