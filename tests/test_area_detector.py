@@ -1,4 +1,5 @@
 import time
+from collections import deque
 from typing import Callable, List
 from unittest.mock import patch
 
@@ -143,6 +144,9 @@ async def test_hdf_streamer_dets_step(hdf_streamer_dets: List[HDFStreamerDet], R
     assert event["data"] == {}
 
 
+FLUSH_PERIOD = 0.5
+
+
 def make_fly_plan(
     hdf_streamer_dets: List[HDFStreamerDet], same_stream=False
 ) -> Callable:
@@ -162,18 +166,19 @@ def make_fly_plan(
             yield from bps.kickoff(det, wait=False, group="kickoff")
         yield from bps.wait(group="kickoff")
         # Complete them and repeatedly collect until done
-        statuses = []
         for det in hdf_streamer_dets:
-            status = yield from bps.complete(det, wait=False, group="complete")
-            statuses.append(status)
-        while any(status and not status.done for status in statuses):
-            yield from bps.sleep(0.1)
+            yield from bps.complete(det, wait=False, group="complete")
+        done = False
+        while not done:
+            try:
+                yield from bps.wait(group="complete", timeout=FLUSH_PERIOD)
+            except TimeoutError:
+                pass
+            else:
+                done = True
             for det in hdf_streamer_dets:
-                kwargs = {}
-                if not same_stream:
-                    kwargs["name"] = det.name
+                kwargs = {} if same_stream else {"name": det.name}
                 yield from bps.collect(det, stream=True, return_payload=False, **kwargs)
-        yield from bps.wait(group="complete")
 
     return bpp.stage_decorator(hdf_streamer_dets)(fly_dets)
 
