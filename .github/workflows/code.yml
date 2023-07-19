@@ -65,8 +65,10 @@ jobs:
       - name: List dependency tree
         run: pipdeptree
 
+      - uses: mdavidsaver/ci-core-dumper@master
+
       - name: Run tests
-        run: pytest
+        run: ulimit -c unlimited && pytest
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
