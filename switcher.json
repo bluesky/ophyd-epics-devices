@@ -16,6 +16,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/check-segfaults/"
   },
   {
+    "version": "dynamic-panda-signals",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/dynamic-panda-signals/"
+  },
+  {
     "version": "panda-ideas",
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas/"
   },
