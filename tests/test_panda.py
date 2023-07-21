@@ -1,7 +1,9 @@
 """Test file specifying how we want to eventually interact with the panda..."""
+from typing import Dict
+
 import numpy as np
 import pytest
-from ophyd.v2.core import DeviceCollector
+from ophyd.v2.core import Device, DeviceCollector, SignalRW, get_device_children
 
 from ophyd_epics_devices.panda import PandA, SeqTable, SeqTrigger
 
@@ -79,3 +81,41 @@ async def test_panda_block_missing_signals(pva):
             == "PandA has a pulse block containing a width signal which has not been "
             + "retrieved by PVI."
         )
+
+
+async def test_panda_sort_signal_by_phase(sim_panda: PandA):
+    # This function is borrowed from panda.py in ophyd-epics-devices for now
+    def find_component_signals(device: Device, prefix: str):
+        for attr_name, attr in get_device_children(device):
+            dot = ""
+
+            # Place a dot inbetween the uppwer and lower class. Don't do this for highest level class.
+            if prefix:
+                dot = "."
+
+            dot_path = f"{prefix}{dot}{attr_name}"
+
+            if isinstance(attr, SignalRW):
+                signalRWs[dot_path] = attr
+            # Need to account for the attr being a dictionary which contains
+
+            find_component_signals(attr, prefix=dot_path)
+
+    signalRWs: Dict[str, SignalRW] = {}
+    find_component_signals(sim_panda, "")
+
+    phases = sim_panda.sort_signal_by_phase(signalRWs)
+    assert len(phases) == 2
+    for phase in phases:
+        assert len(phase)
+    for signal in phase[0]:
+        assert phase.source[:4] == "units"
+    for signal in phase[1]:
+        assert phase.source[:4] != "units"
+
+    # Check two phases are returned, which are lists of signalRW's. the first of which has everything ending in units and the second does not
+    pass
+
+
+def test_panda_sort_signal_by_phase_throws_error_on_empty_phase():
+    pass

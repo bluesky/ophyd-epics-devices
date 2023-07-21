@@ -277,22 +277,31 @@ class PandA(Device, Savable):
         self.set_name(self.name)
         await super().connect(sim)
 
-    def sort_signal_by_phase(self, signals: List[SignalRW]) -> List[SignalRW]:
-        """Two phases. Every signal ending in 'units' is done in first phase.
-        Return rule TODO add test for this"""
+    def sort_signal_by_phase(
+        self, signals: Dict[str, SignalRW]
+    ) -> List[Dict[str, SignalRW]]:
+        """Splits up a dictonary of signals into seperate phases for loading.
 
-        phase_1 = []
-        phase_2 = []
-        for signal in signals:
-            if signal.source.endswith("units"):
-                phase_1.append(signal)
+        Args:
+            signals (dict[str, SignalRW]): The key is a the dotted attribute name as a
+            string, e.g "component_device.signal_name"
+
+        Raises:
+            ValueError: Thrown if signals are found in a phase
+
+        Returns:
+            List[dict[str, SignalRW]]: A list containing smaller dictionaries formed
+            from the input dictionary. Split up into phases
+        """
+        phase_1 = {}
+        phase_2 = {}
+        for key, value in signals.items():
+            if value.source.endswith("units"):
+                phase_1[key] = value
             else:
-                phase_2.append(signal)
+                phase_2[key] = value
 
+        for phase in [phase_1, phase_2]:
+            if not len(phase):
+                raise ValueError("Each phase must have at least one signal")
         return [phase_1, phase_2]
-
-
-"""Tests to add:
-Create fake panda and check everything in phase one ends with units
-Check everything in phase two doesnt end with units
-"""
