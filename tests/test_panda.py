@@ -1,9 +1,10 @@
 """Test file specifying how we want to eventually interact with the panda..."""
 from typing import Dict
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-from ophyd.v2.core import Device, DeviceCollector, SignalRW, get_device_children
+from ophyd.v2.core import Device, DeviceCollector, SignalRW
 
 from ophyd_epics_devices.panda import PandA, SeqTable, SeqTrigger
 
@@ -84,12 +85,14 @@ async def test_panda_block_missing_signals(pva):
 
 
 async def test_panda_sort_signal_by_phase(sim_panda: PandA):
-    # This function is borrowed from panda.py in ophyd-epics-devices for now
-    def find_component_signals(device: Device, prefix: str):
-        for attr_name, attr in get_device_children(device):
+    """"""
+    # Copy from the save plan
+    SignalRW.source = MagicMock()
+
+    def get_and_format_signalRWs(device: Device, prefix: str):
+        for attr_name, attr in device.children:
             dot = ""
 
-            # Place a dot inbetween the uppwer and lower class. Don't do this for highest level class.
             if prefix:
                 dot = "."
 
@@ -99,22 +102,28 @@ async def test_panda_sort_signal_by_phase(sim_panda: PandA):
                 signalRWs[dot_path] = attr
             # Need to account for the attr being a dictionary which contains
 
-            find_component_signals(attr, prefix=dot_path)
+            get_and_format_signalRWs(attr, prefix=dot_path)
 
     signalRWs: Dict[str, SignalRW] = {}
-    find_component_signals(sim_panda, "")
+    get_and_format_signalRWs(sim_panda, "")
+
+    # Ensure we get values in phase1 and phase2
+    for count, key in enumerate(signalRWs.keys()):
+        if count % 2 == 0:
+            signalRWs[key].source = f"{count}_units"
+        else:
+            signalRWs[key].source = f"{count}_PVName"
 
     phases = sim_panda.sort_signal_by_phase(signalRWs)
     assert len(phases) == 2
     for phase in phases:
         assert len(phase)
-    for signal in phase[0]:
-        assert phase.source[:4] == "units"
-    for signal in phase[1]:
-        assert phase.source[:4] != "units"
-
-    # Check two phases are returned, which are lists of signalRW's. the first of which has everything ending in units and the second does not
-    pass
+    phase_1 = phases[0].values()
+    for signal in phase_1:
+        assert signal.source[-5:] == "units"
+    phase_2 = phases[1].values()
+    for signal in phase_2:
+        assert signal.source[-5:] != "units"
 
 
 def test_panda_sort_signal_by_phase_throws_error_on_empty_phase():
