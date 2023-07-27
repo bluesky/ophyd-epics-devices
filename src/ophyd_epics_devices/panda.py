@@ -38,6 +38,19 @@ from p4p.client.thread import Context
 ctxt = Context("pva")
 
 
+# Better as utility funcion?
+def get_type_hints_no_inheritance(cls):
+    hints = get_type_hints(cls)
+    base_classes = cls.__bases__
+    own_hints = hints
+    for base_cls in base_classes:
+        base_hints = get_type_hints(base_cls)
+        for base_hint_names in base_hints.keys():
+            if base_hint_names in own_hints:
+                del own_hints[base_hint_names]
+    return own_hints
+
+
 class PulseBlock(Device):
     delay: SignalRW[float]
     width: SignalRW[float]
@@ -159,11 +172,15 @@ class PandA(Device, Savable):
         """
         block = self.verify_block(name, num)
 
-        field_annos = get_type_hints(block)
+        field_annos = get_type_hints_no_inheritance(type(block))
         block_pvi = await pvi_get(block_pv) if not sim else None
 
         # finds which fields this class actually has, e.g. delay, width...
         for sig_name, sig_type in field_annos.items():
+            # arm PV not currently implemented
+            if sig_name == "arm":
+                continue
+
             origin = get_origin(sig_type)
             args = get_args(sig_type)
 
@@ -223,7 +240,7 @@ class PandA(Device, Savable):
         return block
 
     def set_attribute(self, name, num, block):
-        anno = get_type_hints(self).get(name)
+        anno = get_type_hints(type(self)).get(name)
 
         # get_origin to see if it's a device vector.
         if (anno == DeviceVector[PulseBlock]) or (anno == DeviceVector[SeqBlock]):
@@ -241,7 +258,7 @@ class PandA(Device, Savable):
         makes all required blocks.
         """
         pvi = await pvi_get(self._init_prefix + ":PVI") if not sim else None
-        hints = get_type_hints(self)
+        hints = get_type_hints_no_inheritance(type(self))
 
         # create all the blocks pvi says it should have,
         if pvi:
