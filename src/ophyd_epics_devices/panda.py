@@ -315,7 +315,7 @@ class PandA(Device, Savable):
         phase_1 = {}
         phase_2 = {}
         for key, value in signals.items():
-            if value.source.endswith("units"):
+            if value.source.endswith("UNITS"):
                 phase_1[key] = value
             else:
                 phase_2[key] = value
