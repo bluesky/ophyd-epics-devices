@@ -141,38 +141,41 @@ async def test_save_load_real_panda(RE, tmp_path):
         panda.counter3.out_units,
         panda.counter4.out_units,
         panda.counter5.out_units,
-        panda.counter1.out_capture,
-        panda.counter2.out_capture,
-        panda.counter3.out_capture,
-        panda.counter4.out_capture,
-        panda.counter5.out_capture,
+        panda.counter1.min,
+        panda.counter2.min,
+        panda.counter3.min,
+        panda.counter4.min,
+        panda.counter5.min,
     ]
 
-    values_to_change_to = [
-        1,
-        2.3,
-        7,
-        4,
-        7.6,
-        4.3,
-        5,
-        7,
-        3,
-        5,
-    ]
+    # TODO: find out why some need to be strings
+    values_to_change_to = ["1", "2.3", "7", "4", "7.6", 5, 7, 3, 5, 4]
 
     for i in range(10):
-        signals_to_change[i].set(values_to_change_to[i], wait=True)
+        await signals_to_change[i].set(values_to_change_to[i], wait=True)
+
+    # check IOC is working
+    for i in range(10):
+        assert await signals_to_change[i].get_value() == values_to_change_to[i]
 
     RE(save(panda, path.join(tmp_path, "test_file")))
 
     for i in range(10):
-        signals_to_change[i].set(0)
+        assert await signals_to_change[i].get_value() == values_to_change_to[i]
+
+    reset_values = ["3", "3", "3", "3", "3", 3, 3, 3, 3, 3]
+
+    for i in range(10):
+        await signals_to_change[i].set(reset_values[i], wait=True)
+
+    # confirm IOC is still working
+    for i in range(10):
+        assert await signals_to_change[i].get_value() == reset_values[i]
 
     RE(load(panda, path.join(tmp_path, "test_file")))
 
     for i in range(10):
-        assert str(values_to_change_to[i]) == await signals_to_change[i].get_value()
+        assert values_to_change_to[i] == await signals_to_change[i].get_value()
 
 
 def test_panda_sort_signal_by_phase_throws_error_on_empty_phase():
