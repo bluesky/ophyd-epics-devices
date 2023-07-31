@@ -148,7 +148,18 @@ async def test_save_load_real_panda(RE, tmp_path):
         panda.counter5.out_capture,
     ]
 
-    values_to_change_to = [1, 2.3, 7, 4, 7.6, 4.3, 5, 7, 3, 9]
+    values_to_change_to = [
+        1,
+        2.3,
+        7,
+        4,
+        7.6,
+        4.3,
+        5,
+        7,
+        3,
+        5,
+    ]
 
     for i in range(10):
         signals_to_change[i].set(values_to_change_to[i], wait=True)
@@ -161,9 +172,7 @@ async def test_save_load_real_panda(RE, tmp_path):
     RE(load(panda, path.join(tmp_path, "test_file")))
 
     for i in range(10):
-        e = await signals_to_change[i].get_value()
-
-        assert values_to_change_to[i] == await signals_to_change[i].get_value()
+        assert str(values_to_change_to[i]) == await signals_to_change[i].get_value()
 
 
 def test_panda_sort_signal_by_phase_throws_error_on_empty_phase():
