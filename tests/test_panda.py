@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from bluesky import RunEngine
-from ophyd.v2.core import Device, DeviceCollector, SignalRW, save_device
+from ophyd.v2.core import Device, DeviceCollector, SignalRW, load_device, save_device
 
 from ophyd_epics_devices.panda import PandA, SeqTable, SeqTrigger
 
@@ -161,15 +161,17 @@ async def test_save_load_real_panda(RE, tmp_path):
 
     reset_values = ["3", "3", "3", "3", "3", 3, 3, 3, 3, 3]
 
-    # for i in range(10):
-    #     await signals_to_change[i].set(reset_values[i], wait=True)
+    for i in range(10):
+        await signals_to_change[i].set(reset_values[i], wait=True)
 
-    # # confirm IOC is still working
-    # for i in range(10):
-    #     assert await signals_to_change[i].get_value() == reset_values[i]
+    # confirm IOC is still working
+    for i in range(10):
+        assert await signals_to_change[i].get_value() == reset_values[i]
 
-    # for i in range(10):
-    #     assert values_to_change_to[i] == await signals_to_change[i].get_value()
+    await load_device(panda, path.join(tmp_path, "test_file"))
+
+    for i in range(10):
+        assert values_to_change_to[i] == await signals_to_change[i].get_value()
 
 
 def test_panda_sort_signal_by_phase_throws_error_on_empty_phase():
