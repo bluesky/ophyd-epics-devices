@@ -36,6 +36,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/panda-ideas-testing/"
   },
   {
+    "version": "remove_container_ci",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/remove_container_ci/"
+  },
+  {
     "version": "save_load_changing_all_values",
     "url": "https://bluesky.github.io/ophyd-epics-devices/save_load_changing_all_values/"
   },
