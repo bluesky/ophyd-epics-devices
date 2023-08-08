@@ -20,6 +20,10 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/dynamic-panda-signals/"
   },
   {
+    "version": "fix_segfault",
+    "url": "https://bluesky.github.io/ophyd-epics-devices/fix_segfault/"
+  },
+  {
     "version": "get_real_panda_connected",
     "url": "https://bluesky.github.io/ophyd-epics-devices/get_real_panda_connected/"
   },
