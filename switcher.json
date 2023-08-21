@@ -36,10 +36,6 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/save_load_within_ophyd/"
   },
   {
-    "version": "set_blocks_and_change_regex",
-    "url": "https://bluesky.github.io/ophyd-epics-devices/set_blocks_and_change_regex/"
-  },
-  {
     "version": "stream",
     "url": "https://bluesky.github.io/ophyd-epics-devices/stream/"
   }
