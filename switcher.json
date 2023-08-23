@@ -16,10 +16,6 @@
     "url": "https://bluesky.github.io/ophyd-epics-devices/check-segfaults/"
   },
   {
-    "version": "codecov",
-    "url": "https://bluesky.github.io/ophyd-epics-devices/codecov/"
-  },
-  {
     "version": "get_real_panda_connected",
     "url": "https://bluesky.github.io/ophyd-epics-devices/get_real_panda_connected/"
   },
